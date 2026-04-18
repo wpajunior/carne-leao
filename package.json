@@ -5,6 +5,10 @@
   "main": "scripts/extract-repasses.js",
   "scripts": {
     "save-session": "node scripts/save-session.js",
+    "save-session-carne-leao": "node scripts/save-session-carne-leao.js",
+    "inspect-carne-leao": "node scripts/inspect-carne-leao.js",
+    "register-rendimentos": "node scripts/register-rendimentos.js",
+    "register-rendimentos:dry": "node scripts/register-rendimentos.js --dry-run",
     "extract-repasses": "node scripts/extract-repasses.js",
     "check": "node --check scripts/lib.js && node --check scripts/save-session.js && node --check scripts/extract-repasses.js"
   },
@@ -13,6 +17,10 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "playwright": "^1.59.1"
+    "chalk": "^4.1.2",
+    "inquirer": "^13.4.1",
+    "playwright": "^1.59.1",
+    "playwright-extra": "^4.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2"
   }
 }

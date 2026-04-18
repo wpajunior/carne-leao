@@ -1,0 +1,16 @@
+{
+  "properties": [
+    {
+      "address": "Rua Ida Verdi Amorim, 200 - Redentora - Apto 164 / Bloco B São José do Rio Preto/SP - 15015-415",
+      "propertyType": "APARTAMENTO",
+      "tenantName": "Victor Sousa da Cunha",
+      "tenantCpf": "422.737.988-14",
+      "rentAmount": 2610.01,
+      "paymentDay": 10,
+      "deductions": [
+        { "description": "IPTU", "amount": 98.10 },
+        { "description": "Seguro", "amount": 11.91 }
+      ]
+    }
+  ]
+}

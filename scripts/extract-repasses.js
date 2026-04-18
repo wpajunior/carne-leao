@@ -12,6 +12,7 @@ const {
 } = require('./lib');
 
 const REPASSES_URL = 'https://app.nidoadm.com.br/conceitosjrp/index.php/moduloWeb/repasses';
+const MANUAL_PAYMENTS_FILE = path.resolve(__dirname, '..', 'manual-payments.json');
 
 function parseBrazilianDate(value) {
   const match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
@@ -373,6 +374,114 @@ async function writeOutputs(reference, transfers, paymentSources) {
   return { individualPaths };
 }
 
+function formatBRL(value) {
+  return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function buildManualPaymentSource(property, reference) {
+  const [refMonth, refYear] = reference.split('/').map(Number);
+
+  const lastDay = new Date(refYear, refMonth, 0).getDate();
+  const periodStart = `01/${String(refMonth).padStart(2, '0')}/${refYear}`;
+  const periodEnd = `${lastDay}/${String(refMonth).padStart(2, '0')}/${refYear}`;
+
+  const payMonth = refMonth === 12 ? 1 : refMonth + 1;
+  const payYear = refMonth === 12 ? refYear + 1 : refYear;
+  const paymentDate = `${String(property.paymentDay).padStart(2, '0')}/${String(payMonth).padStart(2, '0')}/${payYear}`;
+
+  const r2 = (v) => Math.round(v * 100) / 100;
+
+  const totalDeductions = r2(property.deductions.reduce((sum, d) => sum + r2(d.amount), 0));
+  const netAmount = r2(property.rentAmount - totalDeductions);
+
+  const lineItems = [
+    {
+      dueDate: paymentDate,
+      description: `Aluguel Ref. ${periodStart} a ${periodEnd}`,
+      grossAmount: formatBRL(property.rentAmount),
+      grossAmountValue: r2(property.rentAmount),
+      participation: '100,0000%',
+      debit: null,
+      debitValue: null,
+      credit: formatBRL(property.rentAmount),
+      creditValue: r2(property.rentAmount),
+    },
+    ...property.deductions.map((d) => ({
+      dueDate: paymentDate,
+      description: d.description,
+      grossAmount: formatBRL(r2(d.amount)),
+      grossAmountValue: r2(d.amount),
+      participation: '100,0000%',
+      debit: formatBRL(r2(d.amount)),
+      debitValue: r2(d.amount),
+      credit: null,
+      creditValue: null,
+    })),
+  ];
+
+  return {
+    address: property.address,
+    propertyType: property.propertyType,
+    tenantName: property.tenantName,
+    tenantCpf: property.tenantCpf,
+    transfer: {
+      paymentDate,
+      paid: formatBRL(netAmount),
+      paidValue: netAmount,
+      status: 'Pago',
+    },
+    totals: {
+      totalDebits: formatBRL(totalDeductions),
+      totalCredits: formatBRL(r2(property.rentAmount)),
+      totalTaxaAdm: '0,00',
+      totalPaid: formatBRL(netAmount),
+      totalPendingParticipant: '0,00',
+      totalDebitsValue: totalDeductions,
+      totalCreditsValue: r2(property.rentAmount),
+      totalTaxaAdmValue: 0,
+      totalPaidValue: netAmount,
+      totalPendingParticipantValue: 0,
+    },
+    total: formatBRL(r2(property.rentAmount)),
+    totalValue: r2(property.rentAmount),
+    discounts: formatBRL(totalDeductions),
+    discountsValue: totalDeductions,
+    remainingAmount: formatBRL(netAmount),
+    remainingAmountValue: netAmount,
+    lineItems,
+  };
+}
+
+async function generateManualOutputs(reference) {
+  if (!await fileExists(MANUAL_PAYMENTS_FILE)) {
+    return [];
+  }
+
+  const config = JSON.parse(await fs.readFile(MANUAL_PAYMENTS_FILE, 'utf8'));
+  if (!Array.isArray(config.properties) || config.properties.length === 0) {
+    return [];
+  }
+
+  const referencePrefix = reference.replace('/', '-');
+  const generatedAt = new Date().toISOString();
+  const writtenPaths = [];
+
+  for (const property of config.properties) {
+    const source = buildManualPaymentSource(property, reference);
+    const fileName = [
+      referencePrefix,
+      'manual',
+      slugify(property.address),
+    ].join('-') + '.json';
+    const filePath = path.join(OUTPUT_DIR, fileName);
+
+    await fs.writeFile(filePath, JSON.stringify({ generatedAt, reference, ...source }, null, 2), 'utf8');
+    writtenPaths.push(filePath);
+  }
+
+  return writtenPaths;
+}
+
 async function main() {
   await ensureProjectDirs();
 
@@ -409,12 +518,14 @@ async function main() {
     }
 
     const outputs = await writeOutputs(reference, selectedTransfers, allPaymentSources);
+    const manualPaths = await generateManualOutputs(reference);
 
     console.log(JSON.stringify({
       reference,
       transferCount: selectedTransfers.length,
       paymentSources: allPaymentSources.length,
       individualPaths: outputs.individualPaths,
+      manualPaths,
     }, null, 2));
   } finally {
     await browser.close();
