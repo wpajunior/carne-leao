@@ -73,12 +73,8 @@ async function loadOutputFiles() {
 
 function extractDeductions(data) {
   return data.lineItems
-    .filter((item) =>
-      item.description?.includes('Taxa ADM') ||
-      item.description?.includes('IPTU') ||
-      /seguro/i.test(item.description ?? '')
-    )
-    .reduce((sum, item) => sum + (item.debitValue ?? 0), 0);
+    .filter((item) => (item.debitValue ?? 0) > 0)
+    .reduce((sum, item) => sum + item.debitValue, 0);
 }
 
 function extractRentLineItem(data) {
