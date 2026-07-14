@@ -5,7 +5,7 @@
       "propertyType": "APARTAMENTO",
       "tenantName": "Victor Sousa da Cunha",
       "tenantCpf": "422.737.988-14",
-      "rentAmount": 2610.01,
+      "rentAmount": 2728.01,
       "paymentDay": 10,
       "deductions": [
         { "description": "IPTU", "amount": 98.10 },
